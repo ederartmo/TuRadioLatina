@@ -1,0 +1,23 @@
+.global-player-card {
+  border-radius: 18px;
+  background: linear-gradient(160deg, #6b5bff 0%, #4f46e5 55%, #3c2db6 100%);
+  box-shadow: 0 16px 38px rgba(79, 70, 229, 0.34);
+  transition: all 0.35s ease;
+}
+
+.player-cover {
+  border-radius: 14px;
+}
+
+.player-main-button {
+  box-shadow: 0 8px 22px rgba(255, 255, 255, 0.28);
+  transition: all 0.35s ease;
+}
+
+.player-main-button:hover {
+  transform: translateY(-1px) scale(1.03);
+}
+
+.player-expanded {
+  transition: all 0.35s ease;
+}

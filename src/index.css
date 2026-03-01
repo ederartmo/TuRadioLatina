@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #ffffff;
+    background-color: #0f172a;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    background-color: #0f172a;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+}
+
+@keyframes pulseRing {
+  0% {
+    box-shadow: 0 0 0 0 rgb(249 115 22 / 40%);
+  }
+  70% {
+    box-shadow: 0 0 0 18px rgb(249 115 22 / 0%);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(249 115 22 / 0%);
+  }
+}
+
+.pulse-ring {
+  animation: pulseRing 1.8s infinite;
+}
+
+@keyframes wave {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+.wave-bar {
+  width: 3px;
+  height: 100%;
+  border-radius: 999px;
+  background: rgb(148 163 184 / 60%);
+  transform-origin: bottom;
+}
+
+.wave-bar-active {
+  background: #f97316;
+  animation: wave 1s ease-in-out infinite;
+}
+
+.player-transition {
+  transition: all 0.35s ease;
+}
+
+.slider-transition {
+  transition: all 0.35s ease;
+}
