@@ -25,7 +25,6 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react'
-import WaveSurfer from 'wavesurfer.js'
 import logoRadio from '../logoradio1.png'
 import { SUPABASE_EPISODES_BUCKET, supabase } from './lib/supabase'
 import './App.css'
@@ -3473,32 +3472,44 @@ function GlobalPlayerCard({
     const container = showExpandedState ? waveformExpandedContainerRef.current : waveformCompactContainerRef.current
     if (!media || !container) return
 
-    const waveSurfer = WaveSurfer.create({
-      container,
-      media,
-      height: 38,
-      waveColor: 'rgba(255,255,255,0.45)',
-      progressColor: '#A3E635',
-      cursorColor: 'transparent',
-      barWidth: 3,
-      barGap: 2,
-      barRadius: 4,
-      normalize: true,
-      dragToSeek: true,
-      interact: true,
-    })
+    let isCancelled = false
+    let waveSurfer = null
 
-    waveSurferRef.current = waveSurfer
+    const initializeWaveform = async () => {
+      const { default: WaveSurfer } = await import('wavesurfer.js')
+      if (isCancelled) return
 
-    const handleReady = () => {
-      setIsWaveformReady(true)
+      waveSurfer = WaveSurfer.create({
+        container,
+        media,
+        height: 38,
+        waveColor: 'rgba(255,255,255,0.45)',
+        progressColor: '#A3E635',
+        cursorColor: 'transparent',
+        barWidth: 3,
+        barGap: 2,
+        barRadius: 4,
+        normalize: true,
+        dragToSeek: true,
+        interact: true,
+      })
+
+      waveSurferRef.current = waveSurfer
+      waveSurfer.on('ready', () => {
+        setIsWaveformReady(true)
+      })
     }
 
-    waveSurfer.on('ready', handleReady)
+    initializeWaveform()
 
     return () => {
-      waveSurfer.destroy()
-      waveSurferRef.current = null
+      isCancelled = true
+      if (waveSurfer) {
+        waveSurfer.destroy()
+      }
+      if (waveSurferRef.current === waveSurfer) {
+        waveSurferRef.current = null
+      }
       setIsWaveformReady(false)
     }
   }, [mediaElementRef, shouldRenderWaveform, showExpandedState, waveformKey])
