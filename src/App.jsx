@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Bell,
@@ -22,6 +22,7 @@ import {
   Share2,
   Sun,
   Upload,
+  UserRound,
   Volume2,
   VolumeX,
 } from 'lucide-react'
@@ -69,6 +70,7 @@ const STREAM_URLS = Array.from(
   new Set([resolvePlayableStreamUrl(RAW_STREAM_URL), resolvePlayableStreamUrl(RAW_FALLBACK_STREAM_URL)].filter(Boolean)),
 )
 const STREAM_URL = STREAM_URLS[0] || '/live'
+const DEFAULT_PLAYER_COVER_IMAGE = '/img/player-cover.svg'
 const THEME_STORAGE_KEY = 'tu-radio-latina-theme'
 const EDITABLE_CONTENT_STORAGE_KEY = 'tu-radio-latina-editable-content'
 const SCHEDULE_DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
@@ -170,6 +172,87 @@ const recommended = [
       'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=280&q=80',
   },
 ]
+
+const hostsContent = {
+  es: {
+    title: 'Locutores',
+    featuredBadge: 'Locutor Principal',
+    featuredBadges: ['En Vivo', 'Certificado'],
+    featured: {
+      name: 'Daniel “El Ritmo” Morales',
+      role: 'Host principal · Prime Time',
+      description:
+        'Conduce el bloque central con entrevistas, música en tendencia y conexión en vivo con la audiencia latina.',
+      image:
+        'https://images.unsplash.com/photo-1604072366595-e75dc92d6bdc?auto=format&fit=crop&w=900&q=80',
+    },
+    secondary: [
+      {
+        id: 1,
+        name: 'Sofía Cruz',
+        role: 'Morning Show',
+        description: 'Información local, noticias del barrio y buena vibra para arrancar el día.',
+        image:
+          'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=700&q=80',
+      },
+      {
+        id: 2,
+        name: 'Kevin Rivera',
+        role: 'Mix Urbano',
+        description: 'Set urbano en vivo con estrenos, clásicos y participación del chat.',
+        image:
+          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=700&q=80',
+      },
+      {
+        id: 3,
+        name: 'Valentina Reyes',
+        role: 'Podcast & Cultura',
+        description: 'Historias de comunidad, cultura latina y conversaciones especiales.',
+        image:
+          'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=700&q=80',
+      },
+    ],
+  },
+  en: {
+    title: 'Hosts',
+    featuredBadge: 'Main Host',
+    featuredBadges: ['Live', 'Certified'],
+    featured: {
+      name: 'Daniel “The Rhythm” Morales',
+      role: 'Main host · Prime Time',
+      description:
+        'Leads the main block with interviews, trending music and live connection with the latino audience.',
+      image:
+        'https://images.unsplash.com/photo-1604072366595-e75dc92d6bdc?auto=format&fit=crop&w=900&q=80',
+    },
+    secondary: [
+      {
+        id: 1,
+        name: 'Sofia Cruz',
+        role: 'Morning Show',
+        description: 'Local updates, neighborhood news and good vibes to start the day.',
+        image:
+          'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=700&q=80',
+      },
+      {
+        id: 2,
+        name: 'Kevin Rivera',
+        role: 'Urban Mix',
+        description: 'Live urban set with fresh releases, classics and chat participation.',
+        image:
+          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=700&q=80',
+      },
+      {
+        id: 3,
+        name: 'Valentina Reyes',
+        role: 'Podcast & Culture',
+        description: 'Community stories, latino culture and special conversations.',
+        image:
+          'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=700&q=80',
+      },
+    ],
+  },
+}
 
 const copy = {
   es: {
@@ -348,7 +431,7 @@ function App() {
   const navigate = useNavigate()
   const [isPlaying, setIsPlaying] = useState(false)
   const [isPlayerExpanded, setIsPlayerExpanded] = useState(true)
-  const [isPlayerSticky, setIsPlayerSticky] = useState(false)
+  const [isPlayerSticky] = useState(false)
   const [activeSlide, setActiveSlide] = useState(0)
   const [isSliderAutoplay, setIsSliderAutoplay] = useState(true)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -416,6 +499,8 @@ function App() {
       ? 'programacion'
       : pathname === '/biblioteca'
         ? 'biblioteca'
+        : pathname === '/locutores'
+          ? 'locutores'
         : pathname === '/podcasts'
           ? 'podcasts'
           : pathname === '/contacto'
@@ -423,6 +508,7 @@ function App() {
             : 'inicio'
   const showProgramacion = currentView === 'inicio' || currentView === 'programacion'
   const showBiblioteca = currentView === 'inicio' || currentView === 'biblioteca'
+  const showLocutores = currentView === 'locutores'
   const showPodcasts = currentView === 'inicio' || currentView === 'podcasts'
   const showContacto = currentView === 'contacto'
   const currentTrackLabel = currentTrack || t.enVivo
@@ -1019,16 +1105,16 @@ function App() {
   }, [])
 
   // Centraliza cambios de estado en vivo del reproductor global.
-  const updateLiveStatus = (nextStatus) => {
+  const updateLiveStatus = useCallback((nextStatus) => {
     setStreamStatus(nextStatus)
-  }
+  }, [])
 
-  const logStreamDebug = (...debugArgs) => {
+  const logStreamDebug = useCallback((...debugArgs) => {
     if (!IS_STREAM_DEBUG_ENABLED) return
     console.info('[TuRadioLatina][stream]', ...debugArgs)
-  }
+  }, [])
 
-  const setAudioStreamByIndex = (audio, nextIndex) => {
+  const setAudioStreamByIndex = useCallback((audio, nextIndex) => {
     const maxIndex = Math.max(STREAM_URLS.length - 1, 0)
     const safeIndex = Math.min(Math.max(nextIndex, 0), maxIndex)
     streamIndexRef.current = safeIndex
@@ -1040,9 +1126,9 @@ function App() {
     }
 
     return nextStreamUrl
-  }
+  }, [logStreamDebug])
 
-  const recoverWithFallbackStream = async (audio) => {
+  const recoverWithFallbackStream = useCallback(async (audio) => {
     if (isRecoveringStreamRef.current) return false
 
     const nextStreamIndex = streamIndexRef.current + 1
@@ -1069,15 +1155,13 @@ function App() {
     } finally {
       isRecoveringStreamRef.current = false
     }
-  }
+  }, [logStreamDebug, setAudioStreamByIndex, updateLiveStatus])
 
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
 
     setAudioStreamByIndex(audio, 0)
-    audio.volume = volume
-    audio.muted = isMuted
 
     const onPause = () => {
       if (isRecoveringStreamRef.current) return
@@ -1143,7 +1227,7 @@ function App() {
       audio.removeEventListener('emptied', onEmptied)
       audio.removeEventListener('error', onError)
     }
-  }, [])
+  }, [recoverWithFallbackStream, setAudioStreamByIndex, updateLiveStatus])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -1388,7 +1472,7 @@ function App() {
     hasFirstInteractionPlaybackRef.current = true
   }
 
-  const startLivePlayback = async () => {
+  const startLivePlayback = useCallback(async () => {
     if (isStartingPlaybackRef.current) return
 
     const audio = audioRef.current
@@ -1420,7 +1504,7 @@ function App() {
     } finally {
       isStartingPlaybackRef.current = false
     }
-  }
+  }, [logStreamDebug, recoverWithFallbackStream, setAudioStreamByIndex, updateLiveStatus])
 
   // Alterna reproducción del único audio global del sitio.
   const togglePlay = async () => {
@@ -1493,7 +1577,7 @@ function App() {
     return () => {
       window.removeEventListener('pointerdown', handleFirstPointerDown)
     }
-  }, [])
+  }, [startLivePlayback])
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
@@ -1806,11 +1890,14 @@ function App() {
           ? t.pausePodcast
           : t.playPodcast
   const playerWaveformKey = playerMode === 'podcast' && activeEpisode ? `${activeEpisode.scope}-${activeEpisode.itemId}` : playerMode
+  const playerCoverImage = getEditableValue('player-cover-image', DEFAULT_PLAYER_COVER_IMAGE)
+  const hostsInfo = hostsContent[language]
 
   const mainMenuLinks = [
     { icon: Radio, label: getEditableValue('menu-inicio', t.inicio), to: '/', active: pathname === '/' },
     { icon: CalendarDays, label: getEditableValue('menu-programacion', t.programacion), to: '/programacion', active: pathname === '/programacion' },
     { icon: Library, label: getEditableValue('menu-biblioteca', t.biblioteca), to: '/biblioteca', active: pathname === '/biblioteca' },
+    { icon: UserRound, label: getEditableValue('menu-locutores', t.locutores), to: '/locutores', active: pathname === '/locutores' },
     { icon: Mic2, label: getEditableValue('menu-podcasts', t.podcasts), to: '/podcasts', active: pathname === '/podcasts' },
     { icon: MessageCircle, label: getEditableValue('menu-contacto', t.contacto), to: '/contacto', active: pathname === '/contacto' },
   ]
@@ -1847,7 +1934,11 @@ function App() {
             <button
               type="button"
               onClick={handleAdminLogout}
-              className="rounded-lg border border-emerald-300 bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-200"
+              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors duration-200 ${
+                isDark
+                  ? 'border-emerald-300 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30'
+                  : 'border-slate-900 bg-slate-900 text-white hover:bg-slate-800'
+              }`}
             >
               Admin activo · Cerrar sesión
             </button>
@@ -1965,7 +2056,7 @@ function App() {
               waveformKey={playerWaveformKey}
               track={currentTrackLabel}
               show={currentShowLabel}
-              cover={currentSlide.image}
+              cover={playerCoverImage || DEFAULT_PLAYER_COVER_IMAGE}
               badge={playerBadge}
               badgeClassName={playerBadge.className}
               volume={volume}
@@ -1984,6 +2075,8 @@ function App() {
               onMuteToggle={handleToggleMute}
               onVolumeChange={handleVolumeChange}
               onShare={handleShare}
+              editableCover={isAdminMode}
+              onCoverSave={(value) => updateEditableValue('player-cover-image', value)}
               mobile
             />
 
@@ -2300,6 +2393,20 @@ function App() {
                 </section>
               )}
 
+              {showLocutores && (
+                <HostsSection
+                  title={hostsInfo.title}
+                  featured={hostsInfo.featured}
+                  featuredBadge={hostsInfo.featuredBadge}
+                  featuredBadges={hostsInfo.featuredBadges}
+                  secondary={hostsInfo.secondary}
+                  isDark={isDark}
+                  isAdminMode={isAdminMode}
+                  getEditableValue={getEditableValue}
+                  onEditableChange={updateEditableValue}
+                />
+              )}
+
               {showPodcasts && (
                 <section>
                   <div className="mb-3 flex items-center justify-between">
@@ -2582,18 +2689,19 @@ function App() {
                   </p>
                 )}
                 <div className="space-y-2">
-                  <SidebarItem icon={Radio} label={t.inicio} to="/" active={pathname === '/'} collapsed={isSidebarCollapsed} isDark={isDark} />
+                  <SidebarItem icon={Radio} label={getEditableValue('menu-inicio', t.inicio)} to="/" active={pathname === '/'} collapsed={isSidebarCollapsed} isDark={isDark} />
                   <SidebarItem
                     icon={CalendarDays}
-                    label={t.programacion}
+                    label={getEditableValue('menu-programacion', t.programacion)}
                     to="/programacion"
                     active={pathname === '/programacion'}
                     collapsed={isSidebarCollapsed}
                     isDark={isDark}
                   />
-                  <SidebarItem icon={Library} label={t.biblioteca} to="/biblioteca" active={pathname === '/biblioteca'} collapsed={isSidebarCollapsed} isDark={isDark} />
-                  <SidebarItem icon={Mic2} label={t.podcasts} to="/podcasts" active={pathname === '/podcasts'} collapsed={isSidebarCollapsed} isDark={isDark} />
-                  <SidebarItem icon={MessageCircle} label={t.contacto} to="/contacto" active={pathname === '/contacto'} collapsed={isSidebarCollapsed} isDark={isDark} />
+                  <SidebarItem icon={Library} label={getEditableValue('menu-biblioteca', t.biblioteca)} to="/biblioteca" active={pathname === '/biblioteca'} collapsed={isSidebarCollapsed} isDark={isDark} />
+                  <SidebarItem icon={UserRound} label={getEditableValue('menu-locutores', t.locutores)} to="/locutores" active={pathname === '/locutores'} collapsed={isSidebarCollapsed} isDark={isDark} />
+                  <SidebarItem icon={Mic2} label={getEditableValue('menu-podcasts', t.podcasts)} to="/podcasts" active={pathname === '/podcasts'} collapsed={isSidebarCollapsed} isDark={isDark} />
+                  <SidebarItem icon={MessageCircle} label={getEditableValue('menu-contacto', t.contacto)} to="/contacto" active={pathname === '/contacto'} collapsed={isSidebarCollapsed} isDark={isDark} />
                 </div>
 
                 {!isSidebarCollapsed && (
@@ -2603,7 +2711,11 @@ function App() {
                         <button
                           type="button"
                           onClick={handleAdminLogout}
-                          className="w-full rounded-xl border border-emerald-300 bg-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-200"
+                          className={`w-full rounded-xl border px-3 py-2 text-xs font-semibold transition-colors duration-200 ${
+                            isDark
+                              ? 'border-emerald-300 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30'
+                              : 'border-slate-900 bg-slate-900 text-white hover:bg-slate-800'
+                          }`}
                         >
                           Admin activo · Cerrar sesión
                         </button>
@@ -2906,6 +3018,21 @@ function App() {
                   </section>
                 )}
 
+                {showLocutores && (
+                  <HostsSection
+                    title={hostsInfo.title}
+                    featured={hostsInfo.featured}
+                    featuredBadge={hostsInfo.featuredBadge}
+                    featuredBadges={hostsInfo.featuredBadges}
+                    secondary={hostsInfo.secondary}
+                    isDark={isDark}
+                    desktop
+                    isAdminMode={isAdminMode}
+                    getEditableValue={getEditableValue}
+                    onEditableChange={updateEditableValue}
+                  />
+                )}
+
                 {currentView === 'podcasts' && (
                   <section>
                     <div className="mb-3 flex items-center justify-between">
@@ -3141,7 +3268,7 @@ function App() {
                   waveformKey={playerWaveformKey}
                   track={currentTrackLabel}
                   show={currentShowLabel}
-                  cover={currentSlide.image}
+                  cover={playerCoverImage || DEFAULT_PLAYER_COVER_IMAGE}
                   badge={playerBadge}
                   badgeClassName={playerBadge.className}
                   volume={volume}
@@ -3160,6 +3287,8 @@ function App() {
                   onMuteToggle={handleToggleMute}
                   onVolumeChange={handleVolumeChange}
                   onShare={handleShare}
+                  editableCover={isAdminMode}
+                  onCoverSave={(value) => updateEditableValue('player-cover-image', value)}
                 />
 
                 <section
@@ -3272,7 +3401,7 @@ function EditableText({ as = 'p', value, editable = false, onSave, className = '
   )
 }
 
-function EditableImage({ src, alt, editable = false, onSave, className = '' }) {
+function EditableImage({ src, alt, editable = false, onSave, className = '', fallbackSrc = '' }) {
   const inputRef = useRef(null)
 
   return (
@@ -3281,6 +3410,11 @@ function EditableImage({ src, alt, editable = false, onSave, className = '' }) {
         src={src}
         alt={alt}
         className={`${className} ${editable ? 'cursor-pointer ring-2 ring-transparent transition hover:ring-[#635BFF]/60' : ''}`.trim()}
+        onError={(event) => {
+          if (!fallbackSrc) return
+          if (event.currentTarget.getAttribute('src') === fallbackSrc) return
+          event.currentTarget.setAttribute('src', fallbackSrc)
+        }}
         onClick={() => {
           if (!editable) return
           inputRef.current?.click()
@@ -3419,6 +3553,169 @@ function NowOnAirSlider({
   )
 }
 
+function HostsSection({
+  title,
+  featured,
+  featuredBadge,
+  featuredBadges = [],
+  secondary = [],
+  isDark,
+  desktop = false,
+  isAdminMode = false,
+  getEditableValue,
+  onEditableChange,
+}) {
+  const sectionTitle = getEditableValue ? getEditableValue('hosts-section-title', title) : title
+  const featuredImage = getEditableValue ? getEditableValue('hosts-featured-image', featured.image) : featured.image
+  const featuredName = getEditableValue ? getEditableValue('hosts-featured-name', featured.name) : featured.name
+  const featuredRole = getEditableValue ? getEditableValue('hosts-featured-role', featured.role) : featured.role
+  const featuredDescription = getEditableValue
+    ? getEditableValue('hosts-featured-description', featured.description)
+    : featured.description
+  const featuredPrimaryBadge = getEditableValue
+    ? getEditableValue('hosts-featured-badge-primary', featuredBadge)
+    : featuredBadge
+
+  return (
+    <section className={`${desktop ? 'mb-6' : 'mb-5'} hosts-section`}>
+      <div className="mb-3 flex items-center justify-between">
+        <EditableText
+          as="h2"
+          value={sectionTitle}
+          editable={isAdminMode}
+          onSave={(value) => onEditableChange?.('hosts-section-title', value)}
+          className="text-sm font-semibold"
+        />
+      </div>
+
+      <article className={`hosts-featured-card rounded-2xl border p-3 lg:p-4 ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+        <div className="hosts-featured-layout gap-3 lg:gap-4">
+          <EditableImage
+            src={featuredImage}
+            alt={featuredName}
+            editable={isAdminMode}
+            onSave={(value) => onEditableChange?.('hosts-featured-image', value)}
+            className="hosts-featured-image h-full w-full rounded-xl object-cover"
+          />
+
+          <div className="hosts-featured-content min-w-0 rounded-xl p-3 lg:p-4">
+            <span
+              className={`mb-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ${
+                isDark
+                  ? 'border border-[#635BFF]/45 bg-[#635BFF]/20 text-[#c8c5ff]'
+                  : 'border border-[#4338ca] bg-[#4f46e5] text-white'
+              }`}
+            >
+              <EditableText
+                as="span"
+                value={featuredPrimaryBadge}
+                editable={isAdminMode}
+                onSave={(value) => onEditableChange?.('hosts-featured-badge-primary', value)}
+              />
+            </span>
+            <EditableText
+              as="h3"
+              value={featuredName}
+              editable={isAdminMode}
+              onSave={(value) => onEditableChange?.('hosts-featured-name', value)}
+              className="text-lg font-semibold leading-tight lg:text-xl"
+            />
+            <EditableText
+              as="p"
+              value={featuredRole}
+              editable={isAdminMode}
+              onSave={(value) => onEditableChange?.('hosts-featured-role', value)}
+              className={`mt-1 text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}
+            />
+            <EditableText
+              as="p"
+              value={featuredDescription}
+              editable={isAdminMode}
+              onSave={(value) => onEditableChange?.('hosts-featured-description', value)}
+              className={`mt-2 text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}
+            />
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {featuredBadges.map((badgeLabel, badgeIndex) => {
+                const badgeKey = `hosts-featured-badge-${badgeIndex + 1}`
+                const currentBadgeLabel = getEditableValue ? getEditableValue(badgeKey, badgeLabel) : badgeLabel
+
+                return (
+                <span
+                  key={badgeKey}
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] ${
+                    isDark ? 'border border-lime-300/35 bg-lime-300/15 text-lime-200' : 'border border-slate-900 bg-slate-900 text-white'
+                  }`}
+                >
+                  <EditableText
+                    as="span"
+                    value={currentBadgeLabel}
+                    editable={isAdminMode}
+                    onSave={(value) => onEditableChange?.(badgeKey, value)}
+                  />
+                </span>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
+        {secondary.map((host, index) => (
+          (() => {
+            const hostImageKey = `hosts-secondary-${host.id}-image`
+            const hostNameKey = `hosts-secondary-${host.id}-name`
+            const hostRoleKey = `hosts-secondary-${host.id}-role`
+            const hostDescriptionKey = `hosts-secondary-${host.id}-description`
+            const hostImage = getEditableValue ? getEditableValue(hostImageKey, host.image) : host.image
+            const hostName = getEditableValue ? getEditableValue(hostNameKey, host.name) : host.name
+            const hostRole = getEditableValue ? getEditableValue(hostRoleKey, host.role) : host.role
+            const hostDescription = getEditableValue ? getEditableValue(hostDescriptionKey, host.description) : host.description
+
+            return (
+              <article
+                key={host.id}
+                className={`hosts-secondary-card hosts-animate-in rounded-2xl border p-3 ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}
+                style={{ animationDelay: `${index * 100 + 80}ms` }}
+              >
+                <EditableImage
+                  src={hostImage}
+                  alt={hostName}
+                  editable={isAdminMode}
+                  onSave={(value) => onEditableChange?.(hostImageKey, value)}
+                  className="hosts-secondary-image h-36 w-full rounded-xl object-cover"
+                />
+                <EditableText
+                  as="h4"
+                  value={hostName}
+                  editable={isAdminMode}
+                  onSave={(value) => onEditableChange?.(hostNameKey, value)}
+                  className="mt-3 text-sm font-semibold"
+                />
+                <EditableText
+                  as="p"
+                  value={hostRole}
+                  editable={isAdminMode}
+                  onSave={(value) => onEditableChange?.(hostRoleKey, value)}
+                  className={`text-[11px] font-semibold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}
+                />
+                <EditableText
+                  as="p"
+                  value={hostDescription}
+                  editable={isAdminMode}
+                  onSave={(value) => onEditableChange?.(hostDescriptionKey, value)}
+                  className={`mt-1 text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-500'}`}
+                />
+              </article>
+            )
+          })()
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function GlobalPlayerCard({
   isPlaying,
   isExpanded,
@@ -3448,6 +3745,8 @@ function GlobalPlayerCard({
   onMuteToggle,
   onVolumeChange,
   onShare,
+  editableCover = false,
+  onCoverSave,
   mobile = false,
 }) {
   const shouldFloatMobile = mobile && isSticky && isPlaying
@@ -3527,7 +3826,14 @@ function GlobalPlayerCard({
         </span>
       </div>
 
-      <img src={cover} alt={track} className="player-cover mt-3 h-28 w-full object-cover" />
+      <EditableImage
+        src={cover || DEFAULT_PLAYER_COVER_IMAGE}
+        alt={track}
+        editable={editableCover}
+        onSave={onCoverSave}
+        fallbackSrc={DEFAULT_PLAYER_COVER_IMAGE}
+        className="player-cover mt-3 w-full object-cover"
+      />
 
       <div className="mt-3 text-center">
         <h3 className="truncate text-sm font-semibold">{track}</h3>
