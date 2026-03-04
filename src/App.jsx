@@ -434,6 +434,7 @@ function App() {
   const mobileLocutoresSectionRef = useRef(null)
   const mobilePodcastsSectionRef = useRef(null)
   const mobileContactoSectionRef = useRef(null)
+  const mobilePlayerSectionRef = useRef(null)
   const navigate = useNavigate()
   const [isPlaying, setIsPlaying] = useState(false)
   const [isPlayerExpanded, setIsPlayerExpanded] = useState(true)
@@ -1478,6 +1479,15 @@ function App() {
     hasFirstInteractionPlaybackRef.current = true
   }
 
+  const scrollToMobilePlayer = () => {
+    if (isDesktopViewport || typeof window === 'undefined') return
+    if (!mobilePlayerSectionRef.current) return
+
+    window.setTimeout(() => {
+      mobilePlayerSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 120)
+  }
+
   const startLivePlayback = useCallback(async () => {
     if (isStartingPlaybackRef.current) return
 
@@ -1795,6 +1805,7 @@ function App() {
         time: timeLabel,
       },
     ])
+        scrollToMobilePlayer()
 
     setChatMessage('')
   }
@@ -2134,39 +2145,41 @@ function App() {
               onEditableChange={updateEditableValue}
             />
 
-            <GlobalPlayerCard
-              isPlaying={isPlaying}
-              isExpanded={isPlayerExpanded}
-              isSticky={isPlayerSticky}
-              canSeek={canSeekInPlayer}
-              enableWaveform={!isDesktopViewport}
-              mediaElementRef={audioRef}
-              waveformKey={playerWaveformKey}
-              track={currentTrackLabel}
-              show={currentShowLabel}
-              cover={playerCoverImage || DEFAULT_PLAYER_COVER_IMAGE}
-              badge={playerBadge}
-              badgeClassName={playerBadge.className}
-              volume={volume}
-              isMuted={isMuted}
-              elapsed={playerElapsedLabel}
-              duration={playerDurationLabel}
-              progress={playerProgress}
-              playToggleLabel={playerToggleActionLabel}
-              t={t}
-              onPlayToggle={togglePlay}
-              onSkipBackward={() => handleSeekBySeconds(-15)}
-              onSkipForward={() => handleSeekBySeconds(15)}
-              onSeekChange={handleSeekToPercent}
-              onExpand={expandPlayer}
-              onCollapse={collapsePlayer}
-              onMuteToggle={handleToggleMute}
-              onVolumeChange={handleVolumeChange}
-              onShare={handleShare}
-              editableCover={isAdminMode}
-              onCoverSave={(value) => updateEditableValue('player-cover-image', value)}
-              mobile
-            />
+            <div ref={mobilePlayerSectionRef}>
+              <GlobalPlayerCard
+                isPlaying={isPlaying}
+                isExpanded={isPlayerExpanded}
+                isSticky={isPlayerSticky}
+                canSeek={canSeekInPlayer}
+                enableWaveform={!isDesktopViewport}
+                mediaElementRef={audioRef}
+                waveformKey={playerWaveformKey}
+                track={currentTrackLabel}
+                show={currentShowLabel}
+                cover={playerCoverImage || DEFAULT_PLAYER_COVER_IMAGE}
+                badge={playerBadge}
+                badgeClassName={playerBadge.className}
+                volume={volume}
+                isMuted={isMuted}
+                elapsed={playerElapsedLabel}
+                duration={playerDurationLabel}
+                progress={playerProgress}
+                playToggleLabel={playerToggleActionLabel}
+                t={t}
+                onPlayToggle={togglePlay}
+                onSkipBackward={() => handleSeekBySeconds(-15)}
+                onSkipForward={() => handleSeekBySeconds(15)}
+                onSeekChange={handleSeekToPercent}
+                onExpand={expandPlayer}
+                onCollapse={collapsePlayer}
+                onMuteToggle={handleToggleMute}
+                onVolumeChange={handleVolumeChange}
+                onShare={handleShare}
+                editableCover={isAdminMode}
+                onCoverSave={(value) => updateEditableValue('player-cover-image', value)}
+                mobile
+              />
+            </div>
 
             {isPlayerSticky && isPlaying && <div className="h-24" />}
 
@@ -2710,32 +2723,10 @@ function App() {
                 </section>
               )}
 
-              <nav className={`fixed inset-x-0 bottom-0 z-50 mx-auto flex w-full max-w-[430px] items-center justify-around border-t px-2 py-2 backdrop-blur-sm ${
-                isDark ? 'border-slate-700 bg-slate-900/95 text-slate-300' : 'border-slate-200 bg-white/95 text-slate-400'
+              <nav className={`mt-4 grid grid-cols-6 items-center gap-1 rounded-2xl border p-2 ${
+                isDark ? 'border-slate-700 bg-slate-900 text-slate-300' : 'border-slate-200 bg-white text-slate-400'
               }`}>
-                {mainMenuLinks.slice(1, 3).map((link) => (
-                  <NavItem
-                    key={link.to}
-                    icon={link.icon}
-                    label={link.label}
-                    to={link.to}
-                    active={link.active}
-                    isDark={isDark}
-                    onClick={link.onClick}
-                  />
-                ))}
-                <PlayerNavItem
-                  isPlaying={isPlaying}
-                  onToggle={async () => {
-                    if (isPlaying) {
-                      await togglePlay()
-                      return
-                    }
-
-                    await handlePlayNow('live')
-                  }}
-                />
-                {mainMenuLinks.slice(3).map((link) => (
+                {mainMenuLinks.map((link) => (
                   <NavItem
                     key={link.to}
                     icon={link.icon}
