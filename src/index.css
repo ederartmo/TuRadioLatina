@@ -45,12 +45,12 @@
 @keyframes wave {
   0%,
   100% {
-    transform: scaleY(0.35);
-    opacity: 0.4;
+    transform: scaleY(0.5);
+    opacity: 0.5;
   }
   50% {
-    transform: scaleY(1);
-    opacity: 1;
+    transform: scaleY(0.82);
+    opacity: 0.85;
   }
 }
 
@@ -64,7 +64,13 @@
 
 .wave-bar-active {
   background: #f97316;
-  animation: wave 1s ease-in-out infinite;
+  animation: wave 1.8s ease-in-out infinite;
+}
+
+.wave-bar-stretch {
+  width: auto;
+  min-width: 2px;
+  flex: 1 1 0%;
 }
 
 .player-transition {

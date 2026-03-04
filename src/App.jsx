@@ -3994,12 +3994,9 @@ function GlobalPlayerCard({
           ) : (
             <>
               <div className="flex h-8 items-end gap-1 rounded-full bg-white/10 px-3 py-1">
-                <span className="wave-bar wave-bar-active" style={{ animationDelay: '0ms' }} />
-                <span className="wave-bar wave-bar-active" style={{ animationDelay: '120ms' }} />
-                <span className="wave-bar wave-bar-active" style={{ animationDelay: '240ms' }} />
-                <span className="wave-bar wave-bar-active" style={{ animationDelay: '360ms' }} />
-                <span className="wave-bar wave-bar-active" style={{ animationDelay: '480ms' }} />
-                <span className="wave-bar wave-bar-active" style={{ animationDelay: '600ms' }} />
+                {Array.from({ length: 28 }).map((_, index) => (
+                  <span key={`wave-bar-${index}`} className="wave-bar wave-bar-active wave-bar-stretch" style={{ animationDelay: `${index * 70}ms` }} />
+                ))}
               </div>
 
               <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/20">
