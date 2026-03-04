@@ -428,6 +428,12 @@ function App() {
   const episodeAudioInputRefs = useRef({})
   const uploadedEpisodeAudioUrlsRef = useRef([])
   const uploadSuccessTimeoutRef = useRef(null)
+  const mobileInicioSectionRef = useRef(null)
+  const mobileProgramacionSectionRef = useRef(null)
+  const mobileBibliotecaSectionRef = useRef(null)
+  const mobileLocutoresSectionRef = useRef(null)
+  const mobilePodcastsSectionRef = useRef(null)
+  const mobileContactoSectionRef = useRef(null)
   const navigate = useNavigate()
   const [isPlaying, setIsPlaying] = useState(false)
   const [isPlayerExpanded, setIsPlayerExpanded] = useState(true)
@@ -1580,6 +1586,30 @@ function App() {
   }, [startLivePlayback])
 
   useEffect(() => {
+    if (isDesktopViewport || typeof window === 'undefined') return undefined
+
+    const sectionElementByView = {
+      inicio: mobileInicioSectionRef.current || mobileProgramacionSectionRef.current,
+      programacion: mobileProgramacionSectionRef.current,
+      biblioteca: mobileBibliotecaSectionRef.current,
+      locutores: mobileLocutoresSectionRef.current,
+      podcasts: mobilePodcastsSectionRef.current,
+      contacto: mobileContactoSectionRef.current,
+    }
+
+    const targetSection = sectionElementByView[currentView]
+    if (!targetSection) return undefined
+
+    const timeoutId = window.setTimeout(() => {
+      targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 90)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [currentView, isDesktopViewport])
+
+  useEffect(() => {
     if (typeof window === 'undefined') return undefined
 
     const desktopQuery = window.matchMedia('(min-width: 1024px)')
@@ -1890,7 +1920,17 @@ function App() {
           ? t.pausePodcast
           : t.playPodcast
   const playerWaveformKey = playerMode === 'podcast' && activeEpisode ? `${activeEpisode.scope}-${activeEpisode.itemId}` : playerMode
-  const playerCoverImage = getEditableValue('player-cover-image', DEFAULT_PLAYER_COVER_IMAGE)
+  const resolveActiveEpisodeCover = () => {
+    if (playerMode !== 'podcast' || !activeEpisode) return ''
+
+    const sourceList = activeEpisode.scope === 'library' ? continueListening : recommended
+    const activeItem = sourceList.find((item) => String(item.id) === String(activeEpisode.itemId))
+    if (!activeItem) return ''
+
+    return getEditableValue(`${activeEpisode.scope}-${activeItem.id}-cover`, activeItem.cover)
+  }
+  const livePlayerCoverImage = getEditableValue('player-cover-image', DEFAULT_PLAYER_COVER_IMAGE)
+  const playerCoverImage = resolveActiveEpisodeCover() || livePlayerCoverImage
   const hostsInfo = hostsContent[language]
 
   const mainMenuLinks = [
@@ -1915,7 +1955,9 @@ function App() {
       >
         <header className="mb-4 flex items-center justify-between lg:hidden">
           <div className="flex items-center gap-2 lg:hidden">
-            <img src={logoRadio} alt="Tu Radio Latina" className="h-10 w-auto object-contain" />
+            <Link to="/" onClick={() => setIsMobileMenuOpen(false)}>
+              <img src={logoRadio} alt="Tu Radio Latina" className="h-10 w-auto object-contain" />
+            </Link>
           </div>
 
           <button
@@ -1928,30 +1970,6 @@ function App() {
             <Menu size={16} />
           </button>
         </header>
-
-        <div className="mb-4 flex items-center justify-end lg:hidden">
-          {isAdminAuthenticated ? (
-            <button
-              type="button"
-              onClick={handleAdminLogout}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors duration-200 ${
-                isDark
-                  ? 'border-emerald-300 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30'
-                  : 'border-slate-900 bg-slate-900 text-white hover:bg-slate-800'
-              }`}
-            >
-              Admin activo · Cerrar sesión
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsAdminModalOpen(true)}
-              className="rounded-lg border border-[#635BFF]/60 bg-[#635BFF]/20 px-3 py-1.5 text-xs font-semibold text-[#c8c5ff]"
-            >
-              Ingresar admin (Supabase)
-            </button>
-          )}
-        </div>
 
         {isAdminModalOpen && (
           <div className="mb-4 rounded-2xl border border-[#635BFF]/40 bg-slate-900/95 p-4">
@@ -2023,6 +2041,76 @@ function App() {
                 )
               })}
             </div>
+
+            <div className={`mt-3 border-t pt-3 ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+              <div className="mb-3">
+                {isAdminAuthenticated ? (
+                  <button
+                    type="button"
+                    onClick={handleAdminLogout}
+                    className={`w-full rounded-xl border px-3 py-2 text-xs font-semibold transition-colors duration-200 ${
+                      isDark
+                        ? 'border-emerald-300 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30'
+                        : 'border-slate-900 bg-slate-900 text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    Admin activo · Cerrar sesión
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMobileMenuOpen(false)
+                      setIsAdminModalOpen(true)
+                    }}
+                    className="w-full rounded-xl border border-[#635BFF]/60 bg-[#635BFF]/20 px-3 py-2 text-xs font-semibold text-[#c8c5ff]"
+                  >
+                    Ingresar admin (Supabase)
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-2">
+                <div
+                  className={`flex items-center rounded-full border p-1 text-xs font-semibold ${
+                    isDark ? 'border-slate-700 bg-slate-800 text-slate-200' : 'border-slate-200 bg-white text-slate-700'
+                  }`}
+                >
+                  <button
+                    onClick={() => {
+                      setLanguage('es')
+                      setIsMobileMenuOpen(false)
+                    }}
+                    className={`rounded-full px-3 py-1 ${language === 'es' ? 'bg-yellow-400 text-slate-900' : ''}`}
+                  >
+                    ES
+                  </button>
+                  <button
+                    onClick={() => {
+                      setLanguage('en')
+                      setIsMobileMenuOpen(false)
+                    }}
+                    className={`rounded-full px-3 py-1 ${language === 'en' ? 'bg-yellow-400 text-slate-900' : ''}`}
+                  >
+                    EN
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setTheme(isDark ? 'light' : 'dark')
+                    setIsMobileMenuOpen(false)
+                  }}
+                  className={`flex h-8 w-14 items-center rounded-full border p-1 ${isDark ? 'justify-start border-slate-700 bg-slate-800' : 'justify-end border-slate-200 bg-white'}`}
+                  aria-label="Cambiar tema"
+                  title="Cambiar tema"
+                >
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-yellow-400 text-slate-900">
+                    {isDark ? <Moon size={13} /> : <Sun size={13} />}
+                  </span>
+                </button>
+              </div>
+            </div>
           </section>
         )}
 
@@ -2084,6 +2172,7 @@ function App() {
 
             {currentView === 'inicio' && (
               <section
+                ref={mobileInicioSectionRef}
                 className={`mb-5 rounded-2xl border p-3 ${
                   isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'
                 }`}
@@ -2159,7 +2248,7 @@ function App() {
             )}
 
               {showProgramacion && (
-                <section className="mb-5">
+                <section ref={mobileProgramacionSectionRef} className="mb-5">
                   <div className="mb-3 flex items-center justify-between">
                     <h2 className="text-sm font-semibold">{t.programacion}</h2>
                     {currentView !== 'programacion' && (
@@ -2176,7 +2265,7 @@ function App() {
                   {currentView === 'programacion' ? (
                     <>
                       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">{t.chooseDay}</p>
-                      <div className="mt-2 grid grid-cols-4 gap-2">
+                      <div className="mt-2 flex items-center justify-between gap-1.5 overflow-x-auto pb-1">
                         {weeklySchedule.map((day) => {
                           const isActiveDay = activeScheduleDay?.id === day.id
 
@@ -2185,7 +2274,7 @@ function App() {
                               key={day.id}
                               type="button"
                               onClick={() => setSelectedScheduleDay(day.id)}
-                              className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full text-[11px] font-semibold transition ${
+                              className={`shrink-0 flex h-9 w-9 items-center justify-center rounded-full text-[10px] font-semibold transition ${
                                 isActiveDay
                                   ? 'bg-[#635BFF] text-white shadow-[0_10px_18px_rgba(99,91,255,0.35)]'
                                   : 'border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
@@ -2278,7 +2367,7 @@ function App() {
               )}
 
               {showBiblioteca && (
-                <section className="mb-5">
+                <section ref={mobileBibliotecaSectionRef} className="mb-5">
                   <div className="mb-3 flex items-center justify-between">
                     <h2 className="text-sm font-semibold">{t.biblioteca}</h2>
                     <button
@@ -2394,21 +2483,23 @@ function App() {
               )}
 
               {showLocutores && (
-                <HostsSection
-                  title={hostsInfo.title}
-                  featured={hostsInfo.featured}
-                  featuredBadge={hostsInfo.featuredBadge}
-                  featuredBadges={hostsInfo.featuredBadges}
-                  secondary={hostsInfo.secondary}
-                  isDark={isDark}
-                  isAdminMode={isAdminMode}
-                  getEditableValue={getEditableValue}
-                  onEditableChange={updateEditableValue}
-                />
+                <div ref={mobileLocutoresSectionRef}>
+                  <HostsSection
+                    title={hostsInfo.title}
+                    featured={hostsInfo.featured}
+                    featuredBadge={hostsInfo.featuredBadge}
+                    featuredBadges={hostsInfo.featuredBadges}
+                    secondary={hostsInfo.secondary}
+                    isDark={isDark}
+                    isAdminMode={isAdminMode}
+                    getEditableValue={getEditableValue}
+                    onEditableChange={updateEditableValue}
+                  />
+                </div>
               )}
 
               {showPodcasts && (
-                <section>
+                <section ref={mobilePodcastsSectionRef}>
                   <div className="mb-3 flex items-center justify-between">
                     <h2 className="text-sm font-semibold">{t.podcasts}</h2>
                     <button
@@ -2497,20 +2588,20 @@ function App() {
                                   >
                                     <Upload size={12} />
                                   </button>
-                                  <button
-                                    type="button"
-                                    onPointerDown={handleEpisodePlayPointerDown}
-                                    onClick={() => {
-                                      void handleEpisodeToggleFromList({ scope: 'podcast', itemId: item.id, title, host })
-                                    }}
-                                    className="rounded-full bg-[#635BFF] p-2 text-white"
-                                    aria-label={isCurrentEpisodePlaying ? 'Pausar episodio' : 'Reproducir episodio'}
-                                    title={isCurrentEpisodePlaying ? 'Pausar episodio' : 'Reproducir episodio'}
-                                  >
-                                    {isCurrentEpisodePlaying ? <Pause size={12} /> : <Play size={12} className="translate-x-0.5" />}
-                                  </button>
                                 </>
                               )}
+                              <button
+                                type="button"
+                                onPointerDown={handleEpisodePlayPointerDown}
+                                onClick={() => {
+                                  void handleEpisodeToggleFromList({ scope: 'podcast', itemId: item.id, title, host })
+                                }}
+                                className="rounded-full bg-[#635BFF] p-2 text-white"
+                                aria-label={isCurrentEpisodePlaying ? 'Pausar episodio' : 'Reproducir episodio'}
+                                title={isCurrentEpisodePlaying ? 'Pausar episodio' : 'Reproducir episodio'}
+                              >
+                                {isCurrentEpisodePlaying ? <Pause size={12} /> : <Play size={12} className="translate-x-0.5" />}
+                              </button>
                             </>
                           )
                         })()}
@@ -2521,7 +2612,7 @@ function App() {
               )}
 
               {showContacto && (
-                <section>
+                <section ref={mobileContactoSectionRef}>
                   <div className="mb-3 flex items-center justify-between">
                       <EditableText
                         as="h2"
@@ -3123,20 +3214,20 @@ function App() {
                                     >
                                       <Upload size={12} />
                                     </button>
-                                    <button
-                                      type="button"
-                                      onPointerDown={handleEpisodePlayPointerDown}
-                                      onClick={() => {
-                                        void handleEpisodeToggleFromList({ scope: 'podcast', itemId: item.id, title, host })
-                                      }}
-                                      className="rounded-full bg-[#635BFF] p-2 text-white"
-                                      aria-label={isCurrentEpisodePlaying ? 'Pausar episodio' : 'Reproducir episodio'}
-                                      title={isCurrentEpisodePlaying ? 'Pausar episodio' : 'Reproducir episodio'}
-                                    >
-                                      {isCurrentEpisodePlaying ? <Pause size={12} /> : <Play size={12} className="translate-x-0.5" />}
-                                    </button>
                                   </>
                                 )}
+                                <button
+                                  type="button"
+                                  onPointerDown={handleEpisodePlayPointerDown}
+                                  onClick={() => {
+                                    void handleEpisodeToggleFromList({ scope: 'podcast', itemId: item.id, title, host })
+                                  }}
+                                  className="rounded-full bg-[#635BFF] p-2 text-white"
+                                  aria-label={isCurrentEpisodePlaying ? 'Pausar episodio' : 'Reproducir episodio'}
+                                  title={isCurrentEpisodePlaying ? 'Pausar episodio' : 'Reproducir episodio'}
+                                >
+                                  {isCurrentEpisodePlaying ? <Pause size={12} /> : <Play size={12} className="translate-x-0.5" />}
+                                </button>
                               </>
                             )
                           })()}
@@ -3477,11 +3568,11 @@ function NowOnAirSlider({
           alt={slideTitle}
           editable={isAdminMode}
           onSave={(value) => onEditableChange?.(`${slideKeyPrefix}-image`, value)}
-          className="h-44 w-full object-cover opacity-35 lg:h-56"
+          className="h-52 w-full object-cover opacity-35 lg:h-56"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[#2f2ab5]/95 via-[#4f46e5]/70 to-[#4f46e5]/20" />
 
-        <div className="absolute inset-0 p-4 pb-14 lg:p-6 lg:pb-6">
+        <div className="absolute inset-0 p-4 pb-20 lg:p-6 lg:pb-6">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70">{title}</p>
@@ -3522,7 +3613,7 @@ function NowOnAirSlider({
             <button
               data-audio-trigger={isEpisodeAction ? 'episode' : undefined}
               onClick={onAction}
-              className="mt-3 mb-2 inline-flex items-center gap-2 rounded-full bg-lime-300 px-4 py-2 text-xs font-semibold text-slate-900 lg:text-sm"
+              className="mt-3 inline-flex items-center gap-2 rounded-full bg-lime-300 px-4 py-2 text-xs font-semibold text-slate-900 lg:text-sm"
             >
               <Radio size={14} />
               {actionLabel}
