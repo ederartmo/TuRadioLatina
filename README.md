@@ -8,15 +8,15 @@ El botón **Escuchar** usa la variable `VITE_STREAM_URL` y, si falla, intenta `V
 2. Agrega tu URL:
 
 ```env
-VITE_STREAM_URL=https://radio.turadiolatina.com/live
-VITE_STREAM_FALLBACK_URL=http://31.97.168.251:8000/live
+VITE_STREAM_URL=http://31.97.168.251:8000/live
+VITE_STREAM_FALLBACK_URL=https://radio.turadiolatina.com/live
 ```
 
 Opcional (por defecto ya viene configurado):
 
 ```env
 VITE_STREAM_PROXY_PATH=/stream-live
-VITE_STREAM_STATUS_URL=https://radio.turadiolatina.com/status-json.xsl
+VITE_STREAM_STATUS_URL=http://31.97.168.251:8000/status-json.xsl
 ```
 
 3. Reinicia el servidor de desarrollo (`npm run dev`).

@@ -35,6 +35,7 @@ const DEFAULT_FALLBACK_STREAM_URL = 'http://31.97.168.251:8000/live'
 const RAW_STREAM_URL = import.meta.env.VITE_STREAM_URL || DEFAULT_PRIMARY_STREAM_URL
 const RAW_FALLBACK_STREAM_URL = import.meta.env.VITE_STREAM_FALLBACK_URL || DEFAULT_FALLBACK_STREAM_URL
 const STREAM_PROXY_PATH = import.meta.env.VITE_STREAM_PROXY_PATH || '/stream-live'
+const STREAM_RECOVERY_TIMEOUT_MS = Number(import.meta.env.VITE_STREAM_RECOVERY_TIMEOUT_MS || 12000)
 const IS_ABSOLUTE_STREAM_URL = RAW_STREAM_URL.startsWith('http://') || RAW_STREAM_URL.startsWith('https://')
 const IS_HTTPS_PAGE = typeof window !== 'undefined' && window.location.protocol === 'https:'
 const IS_STREAM_DEBUG_ENABLED = import.meta.env.DEV || import.meta.env.VITE_DEBUG_STREAM === 'true'
@@ -52,13 +53,22 @@ const resolvePlayableStreamUrl = (rawUrl) => {
   return rawUrl
 }
 
-const STREAM_STATUS_URL =
-  import.meta.env.VITE_STREAM_STATUS_URL ||
-  (IS_HTTPS_PAGE && IS_ABSOLUTE_STREAM_URL && RAW_STREAM_URL.startsWith('http://')
-    ? '/stream-status'
-    : IS_ABSOLUTE_STREAM_URL
-      ? RAW_STREAM_URL.replace(/\/live(?:\?.*)?$/, '/status-json.xsl')
-      : '/stream-status')
+const resolvePlayableStatusUrl = (rawUrl) => {
+  if (!rawUrl) return '/stream-status'
+
+  const isAbsoluteStatusUrl = rawUrl.startsWith('http://') || rawUrl.startsWith('https://')
+  if (!isAbsoluteStatusUrl) return rawUrl
+
+  if (IS_HTTPS_PAGE && rawUrl.startsWith('http://')) {
+    return '/stream-status'
+  }
+
+  return rawUrl
+}
+
+const RAW_STREAM_STATUS_URL =
+  import.meta.env.VITE_STREAM_STATUS_URL || (IS_ABSOLUTE_STREAM_URL ? RAW_STREAM_URL.replace(/\/live(?:\?.*)?$/, '/status-json.xsl') : '/stream-status')
+const STREAM_STATUS_URL = resolvePlayableStatusUrl(RAW_STREAM_STATUS_URL)
 const STREAM_MOUNT_PATH = (() => {
   try {
     return new URL(RAW_STREAM_URL, 'http://localhost').pathname || '/live'
@@ -424,6 +434,7 @@ function App() {
   const streamIndexRef = useRef(0)
   const isRecoveringStreamRef = useRef(false)
   const isStartingPlaybackRef = useRef(false)
+  const streamRecoveryTimeoutRef = useRef(null)
   const hasFirstInteractionPlaybackRef = useRef(false)
   const episodeAudioInputRefs = useRef({})
   const uploadedEpisodeAudioUrlsRef = useRef([])
@@ -1121,6 +1132,13 @@ function App() {
     console.info('[TuRadioLatina][stream]', ...debugArgs)
   }, [])
 
+  const clearStreamRecoveryTimeout = useCallback(() => {
+    if (!streamRecoveryTimeoutRef.current) return
+
+    window.clearTimeout(streamRecoveryTimeoutRef.current)
+    streamRecoveryTimeoutRef.current = null
+  }, [])
+
   const setAudioStreamByIndex = useCallback((audio, nextIndex) => {
     const maxIndex = Math.max(STREAM_URLS.length - 1, 0)
     const safeIndex = Math.min(Math.max(nextIndex, 0), maxIndex)
@@ -1142,9 +1160,24 @@ function App() {
     if (nextStreamIndex >= STREAM_URLS.length) return false
 
     isRecoveringStreamRef.current = true
+    clearStreamRecoveryTimeout()
     logStreamDebug('trying-fallback', { nextStreamIndex, streamCount: STREAM_URLS.length })
     updateLiveStatus('connecting')
     setAudioStreamByIndex(audio, nextStreamIndex)
+
+    if (STREAM_URLS.length > 1) {
+      streamRecoveryTimeoutRef.current = window.setTimeout(() => {
+        streamRecoveryTimeoutRef.current = null
+        void (async () => {
+          if (audio.paused || isRecoveringStreamRef.current) return
+          const recovered = await recoverWithFallbackStream(audio)
+          if (recovered) return
+
+          setIsPlaying(false)
+          updateLiveStatus('error')
+        })()
+      }, STREAM_RECOVERY_TIMEOUT_MS)
+    }
 
     try {
       await audio.play()
@@ -1160,9 +1193,28 @@ function App() {
       })
       return false
     } finally {
+      clearStreamRecoveryTimeout()
       isRecoveringStreamRef.current = false
     }
-  }, [logStreamDebug, setAudioStreamByIndex, updateLiveStatus])
+  }, [clearStreamRecoveryTimeout, logStreamDebug, setAudioStreamByIndex, updateLiveStatus])
+
+  const scheduleStreamRecovery = useCallback((audio) => {
+    if (STREAM_URLS.length < 2 || audio.paused) return
+
+    clearStreamRecoveryTimeout()
+    streamRecoveryTimeoutRef.current = window.setTimeout(() => {
+      streamRecoveryTimeoutRef.current = null
+      void (async () => {
+        if (audio.paused || isRecoveringStreamRef.current) return
+
+        const recovered = await recoverWithFallbackStream(audio)
+        if (recovered) return
+
+        setIsPlaying(false)
+        updateLiveStatus('error')
+      })()
+    }, STREAM_RECOVERY_TIMEOUT_MS)
+  }, [clearStreamRecoveryTimeout, recoverWithFallbackStream, updateLiveStatus])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -1171,6 +1223,7 @@ function App() {
     setAudioStreamByIndex(audio, 0)
 
     const onPause = () => {
+      clearStreamRecoveryTimeout()
       if (isRecoveringStreamRef.current) return
 
       setIsPlaying(false)
@@ -1183,9 +1236,11 @@ function App() {
     const onWaiting = () => {
       if (!audio.paused) {
         updateLiveStatus('connecting')
+        scheduleStreamRecovery(audio)
       }
     }
     const onPlaying = () => {
+      clearStreamRecoveryTimeout()
       setIsPlaying(true)
       updateLiveStatus('live')
     }
@@ -1198,10 +1253,12 @@ function App() {
       setAudioDurationSeconds(nextDuration)
     }
     const onEmptied = () => {
+      clearStreamRecoveryTimeout()
       setElapsedSeconds(0)
       setAudioDurationSeconds(0)
     }
     const onError = () => {
+      clearStreamRecoveryTimeout()
       void (async () => {
         const recovered = await recoverWithFallbackStream(audio)
         if (recovered) return
@@ -1223,6 +1280,7 @@ function App() {
     audio.addEventListener('error', onError)
 
     return () => {
+      clearStreamRecoveryTimeout()
       audio.removeEventListener('pause', onPause)
       audio.removeEventListener('waiting', onWaiting)
       audio.removeEventListener('stalled', onWaiting)
@@ -1234,7 +1292,7 @@ function App() {
       audio.removeEventListener('emptied', onEmptied)
       audio.removeEventListener('error', onError)
     }
-  }, [recoverWithFallbackStream, setAudioStreamByIndex, updateLiveStatus])
+  }, [clearStreamRecoveryTimeout, recoverWithFallbackStream, scheduleStreamRecovery, setAudioStreamByIndex, updateLiveStatus])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -1498,6 +1556,7 @@ function App() {
     updateLiveStatus('connecting')
     isRecoveringStreamRef.current = false
     setAudioStreamByIndex(audio, 0)
+    scheduleStreamRecovery(audio)
     logStreamDebug('play-request', { primarySource: STREAM_URLS[0] || STREAM_URL, candidates: STREAM_URLS })
 
     try {
@@ -1518,9 +1577,10 @@ function App() {
         errorMessage: audio.error?.message,
       })
     } finally {
+      clearStreamRecoveryTimeout()
       isStartingPlaybackRef.current = false
     }
-  }, [logStreamDebug, recoverWithFallbackStream, setAudioStreamByIndex, updateLiveStatus])
+  }, [clearStreamRecoveryTimeout, logStreamDebug, recoverWithFallbackStream, scheduleStreamRecovery, setAudioStreamByIndex, updateLiveStatus])
 
   // Alterna reproducción del único audio global del sitio.
   const togglePlay = async () => {
